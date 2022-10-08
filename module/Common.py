@@ -46,7 +46,13 @@ def generate_tinsts_binary_label(batch_insts, vocab, if_evaluate=False):
         confidence = 0.5 * inst.confidence
         if inst.predicted == '':
             inst.predicted = inst.label
+        if inst.predicted == 'Anomalous':
+            inst.predicted = 'Anomaly'
         tinst.tags[b, vocab.tag2id(inst.predicted)] = 1 - confidence
+        if vocab.tag2id(inst.predicted) is None:
+            a = vocab.tag2id(inst.predicted)
+            print(inst.predicted)
+            print(a)
         tinst.tags[b, 1 - vocab.tag2id(inst.predicted)] = confidence
         tinst.g_truth[b] = vocab.tag2id(inst.predicted)
         cur_slen = len(inst.sequence)

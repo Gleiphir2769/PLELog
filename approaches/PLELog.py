@@ -1,3 +1,4 @@
+import logging
 import sys
 
 sys.path.extend([".", ".."])
@@ -64,7 +65,7 @@ class PLELog:
             tag_logits = F.softmax(tag_logits)
         if threshold is not None:
             probs = tag_logits.detach().cpu().numpy()
-            anomaly_id = self.label2id['Anomalous']
+            anomaly_id = self.label2id['Anomaly']
             pred_tags = np.zeros(probs.shape[0])
             for i, logits in enumerate(probs):
                 if logits[anomaly_id] >= threshold:
@@ -156,6 +157,7 @@ if __name__ == '__main__':
     # Training, Validating and Testing instances.
     template_encoder = Template_TF_IDF_without_clean() if dataset == 'NC' else Simple_template_TF_IDF()
     processor = Preprocessor()
+    # 预处理数据，划分训练集，验证集，测试集
     train, dev, test = processor.process(dataset=dataset, parsing=parser, cut_func=cut_by_613,
                                          template_encoding=template_encoder.present)
     num_classes = len(processor.train_event2idx)
@@ -202,7 +204,7 @@ if __name__ == '__main__':
             else:
                 FN += 1
         else:
-            if inst.label == 'Anomalous':
+            if inst.label == 'Anomaly':
                 TP += 1
             else:
                 FP += 1

@@ -38,6 +38,7 @@ class HDFSLoader(BasicDataLoader):
         self.in_file = in_file
         self.remove_cols = [0, 1, 2, 3, 4]
         self.dataset_base = datasets_base
+        # 映射日志到特征空间
         self._load_raw_log_seqs()
         self._load_hdfs_labels()
         self.semantic_repr_func = semantic_repr_func
@@ -157,7 +158,9 @@ class HDFSLoader(BasicDataLoader):
             with open(self.in_file, 'r', encoding='utf-8') as reader:
                 log_id = 0
                 for line in tqdm(reader.readlines()):
+                    # 剔除掉不需要的列
                     processed_line = self._pre_process(line)
+                    # 提取HDFS的块ID
                     block_ids = set(re.findall(self.blk_rex, processed_line))
                     if len(block_ids) == 0:
                         self.logger.warning('Failed to parse line: %s . Try with raw log message.' % line)
@@ -171,6 +174,7 @@ class HDFSLoader(BasicDataLoader):
                         if block_id not in self.block2seqs.keys():
                             self.blocks.append(block_id)
                             self.block2seqs[block_id] = []
+                        # 将块id映射到向量空间，其实每条日志都对应一个block的意义是可追溯
                         self.block2seqs[block_id].append(log_id)
 
                     log_id += 1
@@ -196,7 +200,7 @@ class HDFSLoader(BasicDataLoader):
             for line in reader.readlines():
                 token = line.strip().split(',')
                 block = token[0]
-                label = self.id2label[int(token[1])]
+                label = token[1]
                 self.block2label[block] = label
 
 

@@ -29,7 +29,7 @@ torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 
 # Device configuration
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 SESSION = hashlib.md5(
     time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 8 * 60 * 60)).encode('utf-8')).hexdigest()
@@ -38,14 +38,14 @@ SESSION = 'SESSION_' + SESSION
 
 def GET_PROJECT_ROOT():
     # goto the root folder of LogBar
-    current_abspath = os.path.abspath('__file__')
-    while True:
-        if os.path.split(current_abspath)[1] == 'PLELog':
-            project_root = current_abspath
-            break
-        else:
-            current_abspath = os.path.dirname(current_abspath)
-    return project_root
+    current_abspath = os.path.abspath(os.path.dirname(__file__))
+    # while True:
+    #     if os.path.split(current_abspath)[1] == 'PLELog':
+    #         project_root = current_abspath
+    #         break
+    #     else:
+    #         current_abspath = os.path.dirname(current_abspath)
+    return current_abspath
 
 
 def GET_LOGS_ROOT():
