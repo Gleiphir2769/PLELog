@@ -1,6 +1,9 @@
 import logging
 import sys
 
+import torch.utils.data
+from advertorch.attacks import GradientSignAttack
+
 sys.path.extend([".", ".."])
 from CONSTANTS import *
 from sklearn.decomposition import FastICA
@@ -117,6 +120,10 @@ class PLELog:
         return precision, recall, f
 
 
+def co_train_classifier(vocabs, layers, hiddens, label2id):
+    return PLELog(vocabs, layers, hiddens, label2id)
+
+
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--dataset', default='HDFS', type=str, help='Target dataset. Default HDFS')
@@ -131,6 +138,8 @@ if __name__ == '__main__':
                            help="Reduce dimentsion for fastICA, to accelerate the HDBSCAN probabilistic label estimation.")
     argparser.add_argument('--threshold', type=float, default=0.5,
                            help="Anomaly threshold for PLELog.")
+    argparser.add_argument('--epsilon', type=float, default=0.02,
+                           help="GradientSignAttack argument.")
     args, extra_args = argparser.parse_known_args()
 
     dataset = args.dataset
@@ -187,39 +196,59 @@ if __name__ == '__main__':
 
     # Probabilistic labeling.
     # Sample normal instances.
-    train_normal = [x for x, inst in enumerate(train) if inst.label == 'Normal']
-    normal_ids = train_normal[:int(0.5 * len(train_normal))]
-    label_generator = Probabilistic_Labeling(min_samples=min_samples, min_clust_size=min_cluster_size,
-                                             res_file=prob_label_res_file, rand_state_file=rand_state)
+    # 有标签normal数据集
+    train_labeled_normal = [x for x, inst in enumerate(train) if inst.label == 'Normal']
+    train_no_labeled = [x for x, inst in enumerate(train) if inst.label == '']
+    # normal_ids = train_normal[:int(0.5 * len(train_normal))]
+    # label_generator = Probabilistic_Labeling(min_samples=min_samples, min_clust_size=min_cluster_size,
+    #                                          res_file=prob_label_res_file, rand_state_file=rand_state)
+    #
+    # labeled_train = label_generator.auto_label(train, normal_ids)
 
-    labeled_train = label_generator.auto_label(train, normal_ids)
+    # 获取有label train数据集
+    S_sampler = torch.utils.data.SubsetRandomSampler(train_labeled_normal)
+    U_sampler = torch.utils.data.SubsetRandomSampler(train_no_labeled)
+    # todo: batch size?
+    S_loader1 = torch.utils.data.DataLoader(train, batch_size=batch_size, sampler=S_sampler)
+    S_loader2 = torch.utils.data.DataLoader(train, batch_size=batch_size, sampler=S_sampler)
+    U_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, sampler=U_sampler)
 
     # Below is used to test if the loaded result match the original clustering result.
-    TP, TN, FP, FN = 0, 0, 0, 0
-
-    for inst in labeled_train:
-        if inst.predicted == 'Normal':
-            if inst.label == 'Normal':
-                TN += 1
-            else:
-                FN += 1
-        else:
-            if inst.label == 'Anomaly':
-                TP += 1
-            else:
-                FP += 1
-    from utils.common import get_precision_recall
-
-    print(len(normal_ids))
-    print('TP %d TN %d FP %d FN %d' % (TP, TN, FP, FN))
-    p, r, f = get_precision_recall(TP, TN, FP, FN)
-    print('%.4f, %.4f, %.4f' % (p, r, f))
+    # TP, TN, FP, FN = 0, 0, 0, 0
+    #
+    # for inst in labeled_train:
+    #     if inst.predicted == 'Normal':
+    #         if inst.label == 'Normal':
+    #             TN += 1
+    #         else:
+    #             FN += 1
+    #     else:
+    #         if inst.label == 'Anomaly':
+    #             TP += 1
+    #         else:
+    #             FP += 1
+    # from utils.common import get_precision_recall
+    #
+    # print(len(normal_ids))
+    # print('TP %d TN %d FP %d FN %d' % (TP, TN, FP, FN))
+    # p, r, f = get_precision_recall(TP, TN, FP, FN)
+    # print('%.4f, %.4f, %.4f' % (p, r, f))
 
     # Load Embeddings
     vocab = Vocab()
     vocab.load_from_dict(processor.embedding)
 
     plelog = PLELog(vocab, num_layer, lstm_hiddens, processor.label2id)
+    # 创建两个网络
+    net1 = co_train_classifier(vocab, num_layer, lstm_hiddens, processor.label2id)
+    net2 = co_train_classifier(vocab, num_layer, lstm_hiddens, processor.label2id)
+
+    adversary1 = GradientSignAttack(
+        net1, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=args.epsilon, clip_min=-math.inf, clip_max=math.inf,
+        targeted=False)
+    adversary2 = GradientSignAttack(
+        net2, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=args.epsilon, clip_min=-math.inf, clip_max=math.inf,
+        targeted=False)
 
     log = 'layer={}_hidden={}_epoch={}'.format(num_layer, lstm_hiddens, epochs)
     best_model_file = os.path.join(output_model_dir, log + '_best.pt')
@@ -233,6 +262,8 @@ if __name__ == '__main__':
         global_step = 0
         bestF = 0
         batch_num = int(np.ceil(len(labeled_train) / float(batch_size)))
+
+        # 移植协同学习代码
 
         for epoch in range(epochs):
             plelog.model.train()
