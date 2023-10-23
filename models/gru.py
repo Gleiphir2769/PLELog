@@ -54,6 +54,9 @@ class AttGRUModel(nn.Module):
         self.word_embed.weight.data.copy_(torch.from_numpy(pretrained_embedding))
         self.word_embed.weight.requires_grad = False
 
+    def freeze_embeddings(self):
+        self.rnn.requires_grad_(False)
+
     def forward(self, inputs):
         words, masks, word_len = inputs
         embed = self.word_embed(words)

@@ -81,6 +81,7 @@ class HDFSLoader(BasicDataLoader):
                                  'datasets/HDFS/persistences/official')
         if not os.path.exists(save_path):
             os.makedirs(save_path)
+        # todo: 在这里创建日志解析文件
         templates_file = os.path.join(save_path, 'NC_templates.txt')
         log2temp_file = os.path.join(save_path, 'log2temp.txt')
         logseq_file = os.path.join(save_path, 'event_seqs.txt')
@@ -97,8 +98,10 @@ class HDFSLoader(BasicDataLoader):
             pass
         else:
             self.logger.info('Parsing result not found, start a new one.')
+            # todo: 从预先设定的template赋值
             for id, template in enumerate(templates):
                 self.templates[id] = template
+            # todo: 读日志文件
             with open(self.in_file, 'r', encoding='utf-8') as reader:
                 log_id = 0
                 for line in tqdm(reader.readlines()):
@@ -106,9 +109,12 @@ class HDFSLoader(BasicDataLoader):
                     if self.remove_cols:
                         processed_line = self._pre_process(line)
                     for index, template in self.templates.items():
+                        # todo: 正则匹配
                         if re.compile(template).match(processed_line) is not None:
+                            # todo: 设置日志对应的template
                             self.log2temp[log_id] = index
                             break
+                    # todo: 如果预处理的日志没有匹配到任何模版，尝试使用原始日志匹配
                     if log_id not in self.log2temp.keys():
                         self.logger.warning(
                             'Mismatched log message : %s, try using original line.' % processed_line)

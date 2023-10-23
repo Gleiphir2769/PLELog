@@ -31,6 +31,8 @@ torch.backends.cudnn.deterministic = True
 # Device configuration
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
+print("choice device", device)
+
 SESSION = hashlib.md5(
     time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 8 * 60 * 60)).encode('utf-8')).hexdigest()
 SESSION = 'SESSION_' + SESSION

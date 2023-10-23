@@ -63,6 +63,7 @@ class BasicDataLoader():
         templates_embedding_file = os.path.join(parser.persistence_folder, 'templates.vec')
         start_time = time.time()
         if parser.to_update:
+            # todo: parser 在这里生成了所有的template，HDFS中的template就是这么生成的
             self.logger.info('No trained parser found, start training.')
             parser.parse_file(self.in_file, remove_cols=self.remove_cols)
             self.logger.info('Get total %d templates.' % len(parser.parser.drain.clusters))

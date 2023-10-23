@@ -22,27 +22,36 @@ num_layer = 2
 batch_size = 100
 epochs = 5
 
+def extend_vocab(base_vocab, expect_len):
+    res = copy.deepcopy(base_vocab)
+    shape = (300,)
+    array = np.zeros(shape)
+    # index start from 1
+    for i in range(len(base_vocab)+1, expect_len+1):
+        res[i] = array
+    return res
 
-class PLELog:
-    _logger = logging.getLogger('PLELog')
+
+class TransferLog:
+    _logger = logging.getLogger('TransferLog')
     _logger.setLevel(logging.DEBUG)
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - " + SESSION + " - %(levelname)s: %(message)s"))
-    file_handler = logging.FileHandler(os.path.join(LOG_ROOT, 'PLELog.log'))
+    file_handler = logging.FileHandler(os.path.join(LOG_ROOT, 'TransferLog.log'))
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - " + SESSION + " - %(levelname)s: %(message)s"))
     _logger.addHandler(console_handler)
     _logger.addHandler(file_handler)
     _logger.info(
-        'Construct logger for PLELog succeeded, current working directory: %s, logs will be written in %s' %
+        'Construct logger for TransferLog succeeded, current working directory: %s, logs will be written in %s' %
         (os.getcwd(), LOG_ROOT))
 
     @property
     def logger(self):
-        return PLELog._logger
+        return TransferLog._logger
 
     def __init__(self, vocab, num_layer, hidden_size, label2id):
         self.label2id = label2id
@@ -119,15 +128,6 @@ class PLELog:
                 precision, recall, f = 0, 0, 0
         return precision, recall, f
 
-def extend_vocab(base_vocab, expect_len):
-    res = copy.deepcopy(base_vocab)
-    shape = (300,)
-    array = np.zeros(shape)
-    # index start from 1
-    for i in range(len(base_vocab)+1, expect_len+1):
-        res[i] = array
-    return res
-
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--dataset', default='HDFS', type=str, help='Target dataset. Default HDFS')
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     argparser.add_argument('--reduce_dimension', type=int, default=50,
                            help="Reduce dimentsion for fastICA, to accelerate the HDBSCAN probabilistic label estimation.")
     argparser.add_argument('--threshold', type=float, default=0.5,
-                           help="Anomaly threshold for PLELog.")
+                           help="Anomaly threshold for TransferLog.")
     args, extra_args = argparser.parse_known_args()
 
     dataset = args.dataset
@@ -158,13 +158,13 @@ if __name__ == '__main__':
     # Mark results saving directories.
     save_dir = os.path.join(PROJECT_ROOT, 'outputs')
     base = os.path.join(PROJECT_ROOT, 'datasets/' + dataset)
-    output_model_dir = os.path.join(save_dir, 'models/PLELog/' + dataset + '_' + parser + '/model')
-    output_res_dir = os.path.join(save_dir, 'results/PLELog/' + dataset + '_' + parser + '/detect_res')
+    output_model_dir = os.path.join(save_dir, 'models/TransferLog/' + dataset + '_' + parser + '/model')
+    output_res_dir = os.path.join(save_dir, 'results/TransferLog/' + dataset + '_' + parser + '/detect_res')
     prob_label_res_file = os.path.join(save_dir,
-                                       'results/PLELog/' + dataset + '_' + parser +
+                                       'results/TransferLog/' + dataset + '_' + parser +
                                        '/prob_label_res/mcs-' + str(min_cluster_size) + '_ms-' + str(min_samples))
     rand_state = os.path.join(save_dir,
-                              'results/PLELog/' + dataset + '_' + parser +
+                              'results/TransferLog/' + dataset + '_' + parser +
                               '/prob_label_res/random_state')
     save_dir = os.path.join(PROJECT_ROOT, 'outputs')
 
@@ -174,8 +174,32 @@ if __name__ == '__main__':
     # 预处理数据，划分训练集，验证集，测试集
     train, dev, test = processor.process(dataset=dataset, parsing=parser, cut_func=cut_by_613,
                                          template_encoding=template_encoder.present)
-    num_classes = len(processor.train_event2idx)
 
+    # Load Embeddings
+    vocab = Vocab()
+    embed = extend_vocab(processor.embedding, 436)
+    vocab.load_from_dict(embed)
+
+    plelog = TransferLog(vocab, num_layer, lstm_hiddens, processor.label2id)
+
+    transfer_model_file = os.path.join(output_model_dir, 'transfer_from_hdfs_layer=2_hidden=100_epoch=5_best.pt')
+
+    if not os.path.exists(output_model_dir):
+        os.makedirs(output_model_dir)
+
+    plelog.logger.info('=== Best Model ===')
+    plelog.model.load_state_dict(torch.load(transfer_model_file))
+    plelog.logger.info('Load Finished')
+
+    # 重载word embedding
+    plelog.model.reset_word_embed_weight(vocab, vocab.embeddings)
+
+    # 固定隐藏层结构
+    plelog.model.freeze_embeddings()
+
+    plelog.evaluate(test, threshold)
+
+    # 迁移训练
     # Log sequence representation.
     sequential_encoder = Sequential_TF(processor.embedding)
     train_reprs = sequential_encoder.present(train)
@@ -229,13 +253,6 @@ if __name__ == '__main__':
     print('TP %d TN %d FP %d FN %d' % (TP, TN, FP, FN))
     p, r, f = get_precision_recall(TP, TN, FP, FN)
     print('%.4f, %.4f, %.4f' % (p, r, f))
-
-    # Load Embeddings
-    vocab = Vocab()
-    embed = extend_vocab(processor.embedding, 436)
-    vocab.load_from_dict(embed)
-
-    plelog = PLELog(vocab, num_layer, lstm_hiddens, processor.label2id)
 
     log = 'layer={}_hidden={}_epoch={}'.format(num_layer, lstm_hiddens, epochs)
     best_model_file = os.path.join(output_model_dir, log + '_best.pt')
@@ -296,3 +313,4 @@ if __name__ == '__main__':
         plelog.model.load_state_dict(torch.load(best_model_file))
         plelog.evaluate(test, threshold)
     plelog.logger.info('All Finished')
+

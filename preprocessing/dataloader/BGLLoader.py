@@ -580,9 +580,9 @@ if __name__ == '__main__':
     from representations.templates.statistics import Simple_template_TF_IDF
 
     semantic_encoder = Simple_template_TF_IDF()
-    loader = BGLLoader(in_file=os.path.join(PROJECT_ROOT, 'datasets/temp_BGL/BGL.log'),
-                       dataset_base=os.path.join(PROJECT_ROOT, 'datasets/temp_BGL'),
+    loader = BGLLoader(in_file=os.path.join(PROJECT_ROOT, 'datasets/BGL/BGL.log'),
+                       dataset_base=os.path.join(PROJECT_ROOT, 'datasets/BGL'),
                        semantic_repr_func=semantic_encoder.present)
     loader.parse_by_IBM(config_file=os.path.join(PROJECT_ROOT, 'conf/BGL.ini'),
-                        persistence_folder=os.path.join(PROJECT_ROOT, 'datasets/temp_BGL/persistences'))
+                        persistence_folder=os.path.join(PROJECT_ROOT, 'datasets/BGL/persistences'))
     pass
