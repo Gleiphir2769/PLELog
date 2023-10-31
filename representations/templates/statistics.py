@@ -1,3 +1,5 @@
+import tensorflow as tf
+import tensorflow_hub as hub
 import re
 from tqdm import tqdm
 from CONSTANTS import *
@@ -66,7 +68,7 @@ class Simple_template_TF_IDF():
                 for line in tqdm(reader.readlines()):
                     tokens = line.strip().split()
                     word = tokens[0]
-                    embed = np.asarray(tokens[1:], dtype=np.float)
+                    embed = np.asarray(tokens[1:], dtype=float)
                     self._word2vec[word] = embed
 
                     self.vocab_size = len(tokens) - 1
@@ -217,4 +219,57 @@ class Template_TF_IDF_without_clean():
                 template_emb += tf * idf * embed
             id2embed[id] = template_emb
         Statistics_Template_Logger.info("Total %d OOV %d" % (total_words, num_oov))
+        return id2embed
+
+class Template_USE():
+    def __init__(self):
+        model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+        model = hub.load(model_url)
+
+        self.model = model
+
+    def not_empty(self, s):
+        return s and s.strip()
+
+    def present(self, id2templates):
+        processed_id2templates = {}
+        all_tokens = set()
+        tokens_template_counter = Counter()
+
+        # Preprocessing templates and calculate token-in-template apperance.
+        id2embed = {}
+        for id, template in id2templates.items():
+            # Preprocess: split by spaces and special characters.
+            template_tokens = re.split(r'[,\!:=\[\]\(\)\$\s\.\/\#\|\\ ]', template)
+            filtered_tokens = []
+            for simplified_token in template_tokens:
+                if re.match('[\_]+', simplified_token) is not None:
+                    filtered_tokens.append('')
+                elif re.match('[\-]+', simplified_token) is not None:
+                    filtered_tokens.append('')
+                else:
+                    filtered_tokens.append(simplified_token)
+            template_tokens = list(filter(self.not_empty, filtered_tokens))
+
+            # Update token-in-template counter for idf calculation.
+            for token in template_tokens:
+                tokens_template_counter[token] += 1
+                all_tokens = all_tokens.union(template_tokens)
+
+            # Update new processed templates
+            processed_id2templates[id] = ' '.join(template_tokens)
+
+        Statistics_Template_Logger.info(
+            'Found %d tokens in %d log templates' % (len(all_tokens), len(processed_id2templates)))
+
+        # Calculate TF score and summarize template embedding.
+        Statistics_Template_Logger.info("USE calculate sentence embedding:")
+        for id, template in tqdm(processed_id2templates.items()):
+            template_tokens = template.split()
+            N = len(template_tokens)
+            template_emb = np.zeros(512)
+            if N == 0:
+                id2embed[id] = template_emb
+                continue
+            id2embed[id] = self.model([template]).numpy()[0]
         return id2embed

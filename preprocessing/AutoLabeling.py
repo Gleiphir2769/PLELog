@@ -107,6 +107,11 @@ class Probabilistic_Labeling():
                 pickle.dump(state, writer)
         return labeled_inst
 
+    def correct_pseudo_label(self, labeled_inst):
+        for inst in labeled_inst:
+            if inst.label is not inst.predicted and random.random() < 0.2:
+                inst.predicted = inst.label
+
     def record_label_res(self, instances):
         with open(self.res_file, 'w', encoding='utf-8') as writer:
             for inst in instances:
@@ -120,7 +125,7 @@ class Probabilistic_Labeling():
         with open(self.res_file, 'r', encoding='utf-8') as reader:
             for line in reader.readlines():
                 block_id, label, confidence = line.strip().split()
-                block2conf[block_id] = np.float(confidence)
+                block2conf[block_id] = float(confidence)
                 block2label[block_id] = label
         for inst in instances:
             if inst.id in block2label.keys():
