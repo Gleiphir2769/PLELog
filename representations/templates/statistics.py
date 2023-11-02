@@ -49,7 +49,7 @@ class Simple_template_TF_IDF():
                 else:
                     print(word, end=' ')
                     num_oov += 1
-            return np.asarray(return_list, dtype=np.float).sum(axis=0) / len(words)
+            return np.asarray(return_list, dtype=float).sum(axis=0) / len(words)
         else:
             total_words += 1
             word = words.lower()

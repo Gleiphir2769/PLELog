@@ -136,6 +136,8 @@ if __name__ == '__main__':
     argparser.add_argument('--mode', default='train', type=str, help='train or test')
     argparser.add_argument('--parser', default='IBM', type=str,
                            help='Select parser, please see parser list for detail. Default Official.')
+    argparser.add_argument('--labeled_percent', type=int, default=0.1,
+                           help="min_cluster_size.")
     argparser.add_argument('--min_cluster_size', type=int, default=100,
                            help="min_cluster_size.")
     argparser.add_argument('--min_samples', type=int, default=100,
@@ -153,6 +155,7 @@ if __name__ == '__main__':
     min_samples = args.min_samples
     reduce_dimension = args.reduce_dimension
     threshold = args.threshold
+    labeled_percent = args.labeled_percent
 
     print("cuda", torch.cuda.is_available())
     print(device)
@@ -205,7 +208,7 @@ if __name__ == '__main__':
     # Probabilistic labeling.
     # Sample normal instances.
     train_normal = [x for x, inst in enumerate(train) if inst.label == 'Normal']
-    normal_ids = train_normal[:int(0.5 * len(train_normal))]
+    normal_ids = train_normal[:int(labeled_percent * len(train_normal))]
     label_generator = Probabilistic_Labeling(min_samples=min_samples, min_clust_size=min_cluster_size,
                                              res_file=prob_label_res_file, rand_state_file=rand_state)
 

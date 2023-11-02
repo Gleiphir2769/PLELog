@@ -48,7 +48,7 @@ class Probabilistic_Labeling():
             labeled_inst = instances
         else:
             inputs = [inst.repr for inst in instances]
-            inputs = np.asarray(inputs, dtype=np.float)
+            inputs = np.asarray(inputs, dtype=float)
             ground_truth = [inst.label for inst in instances]
 
             labels = self.model.fit_predict(inputs)
@@ -61,7 +61,8 @@ class Probabilistic_Labeling():
             FN_Counter = Counter()
             labeled_inst = []
             idx = 0
-            for inst, label, predict, outlier in zip(instances, labels, predicts, outliers):
+            self.logger.info('auto label with ' + str(len(normal_ids)) + " normal ids...")
+            for inst, label, predict, outlier in tqdm(zip(instances, labels, predicts, outliers)):
                 if idx in normal_ids:
                     inst.predicted = 'Normal'
                     labeled_inst.append(inst)
