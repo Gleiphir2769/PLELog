@@ -134,7 +134,7 @@ if __name__ == '__main__':
     argparser.add_argument('--mode', default='train', type=str, help='train or test')
     argparser.add_argument('--parser', default='IBM', type=str,
                            help='Select parser, please see parser list for detail. Default Official.')
-    argparser.add_argument('--labeled_percent', type=int, default=0.1,
+    argparser.add_argument('--labeled_percent', type=int, default=0.5,
                            help="min_cluster_size.")
     argparser.add_argument('--min_cluster_size', type=int, default=100,
                            help="min_cluster_size.")
