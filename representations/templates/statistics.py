@@ -224,7 +224,11 @@ class Template_TF_IDF_without_clean():
 class Template_USE():
     def __init__(self):
         model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-        model = hub.load("../../datasets/use_model")
+        # 获取当前脚本的绝对路径
+        script_dir = os.path.dirname(__file__)
+        # 构建 data 文件夹中文件的路径
+        model_path = os.path.join(script_dir, '..', '..', 'datasets', 'use_model')
+        model = hub.load(model_path)
 
         self.model = model
 
