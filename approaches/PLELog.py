@@ -229,9 +229,9 @@ if __name__ == '__main__':
     from utils.common import get_precision_recall
 
     print(len(normal_ids))
-    print('TP %d TN %d FP %d FN %d' % (TP, TN, FP, FN))
+    print('--------Auto Label Result: TP %d TN %d FP %d FN %d -----------' % (TP, TN, FP, FN))
     p, r, f = get_precision_recall(TP, TN, FP, FN)
-    print('%.4f, %.4f, %.4f' % (p, r, f))
+    print('--------Auto Label Result: %.4f, %.4f, %.4f -----------' % (p, r, f))
 
     # Load Embeddings
     vocab = Vocab()

@@ -224,7 +224,7 @@ class Template_TF_IDF_without_clean():
 class Template_USE():
     def __init__(self):
         model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-        model = hub.load(model_url)
+        model = hub.load("../../datasets/use_model")
 
         self.model = model
 
@@ -273,3 +273,6 @@ class Template_USE():
                 continue
             id2embed[id] = self.model([template]).numpy()[0]
         return id2embed
+
+if __name__ == '__main__':
+    use = Template_USE()
